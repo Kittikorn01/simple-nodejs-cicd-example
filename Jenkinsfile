@@ -32,7 +32,7 @@ pipeline {
       steps {
         container('my-builder') {
           sh 'npm ci'
-          //sh 'npm run build'
+          sh 'npm run build'
         }
       }
     }
