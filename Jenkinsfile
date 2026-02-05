@@ -1,7 +1,7 @@
 pipeline {
   environment {
     VERCEL_PROJECT_NAME = 'devops04-simple-nodejs-cicd'
-    VERCEL_TOKEN = credentials('devops04-simple-nodejs') // ดึงจาก Jenkins
+    VERCEL_TOKEN = credentials('devops04-vercel-token') // ดึงจาก Jenkins
   }
   agent {
     kubernetes {
@@ -32,7 +32,7 @@ pipeline {
       steps {
         container('my-builder') {
           sh 'npm ci'
-          sh 'npm run build'
+          //sh 'npm run build'
         }
       }
     }
