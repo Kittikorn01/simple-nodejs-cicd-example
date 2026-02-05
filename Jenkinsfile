@@ -1,7 +1,6 @@
 pipeline {
     agent {
         kubernetes {
-            // ต้องระบุ label เสมอใน Declarative Pipeline
             label 'nodejs-agent'
             yaml '''
 apiVersion: v1
@@ -10,8 +9,7 @@ spec:
   containers:
   - name: my-builder
     image: node:20-alpine
-    command:
-    - cat
+    command: ['cat']
     tty: true
 '''
         }
@@ -19,33 +17,26 @@ spec:
 
     environment {
         VERCEL_PROJECT_NAME = 'devops04-simple-nodejs-cicd'
-        VERCEL_TOKEN = credentials('devops04-vercel-token') 
     }
 
     stages {
-        stage('Install Dependencies') {
+        stage('Install & Test') {
             steps {
                 container('my-builder') {
                     sh 'npm ci'
-                }
-            }
-        }
-
-        stage('Run Test') {
-            steps {
-                container('my-builder') {
                     sh 'npm run test'
                 }
             }
         }
 
-        stage('Deploy to Vercel') {
+        stage('Deploy') {
             steps {
                 container('my-builder') {
-                    // ติดตั้ง vercel
-                    sh 'npm install -g vercel@latest'
-                    // ใช้ --yes เพื่อไม่ต้องรอการยืนยัน และระบุชื่อโปรเจกต์ตรงๆ
-                    sh "vercel --token ${VERCEL_TOKEN} --name ${VERCEL_PROJECT_NAME} --prod --confirm --yes"
+                    // ใช้ ID ให้ตรงกับที่ตั้งไว้ใน Jenkins
+                    withCredentials([string(credentialsId: 'devops04-vercel-token', variable: 'VERCEL_TOKEN')]) {
+                        sh 'npm install -g vercel@latest'
+                        sh "vercel --token ${VERCEL_TOKEN} --name ${VERCEL_PROJECT_NAME} --prod --confirm --yes"
+                    }
                 }
             }
         }
