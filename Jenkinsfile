@@ -1,17 +1,12 @@
 pipeline {
-  environment {
-    VERCEL_PROJECT_NAME = 'devops04-simple-nodejs-cicd'
-    VERCEL_TOKEN = credentials('devops04-vercel-token') // ดึงจาก Jenkins
-  }
   agent {
     kubernetes {
-      // This YAML defines the "Docker Container" you want to use
       yaml '''
         apiVersion: v1
         kind: Pod
         spec:
           containers:
-          - name: my-builder  # We will refer to this name later
+          - name: my-builder
             image: node:20-alpine
             command:
             - cat
@@ -19,47 +14,46 @@ pipeline {
       '''
     }
   }
+  
+  environment {
+    VERCEL_PROJECT_NAME = 'devops04-simple-nodejs-cicd'
+    VERCEL_TOKEN = credentials('devops04-vercel-token') 
+  }
+
   stages {
-    stage('Test npm') {
-      steps {
-        container('my-builder') {
-          sh 'npm --version'
-          sh 'node --version'
-        }
-      }
-    }
-    stage('Build') {
+    stage('Prepare') {
       steps {
         container('my-builder') {
           sh 'npm ci'
-          //sh 'npm run build'
         }
       }
     }
-    stage('Test Build') {
+
+    stage('Test') {
       steps {
         container('my-builder') {
           sh 'npm run test'
         }
       }
     }
+
     stage('Deploy') {
       steps {
         container('my-builder') {
           sh 'npm install -g vercel@latest'
-          // Deploy using token-only (non-interactive)
-          sh '''
-            vercel link --project $VERCEL_PROJECT_NAME --token $VERCEL_TOKEN --yes
-            vercel --token $VERCEL_TOKEN --prod --confirm
-          '''
+          // ตัด vercel link ออกแล้วใช้การระบุชื่อโปรเจกต์ตรงๆ ในการ deploy
+          sh "vercel --token ${VERCEL_TOKEN} --name ${VERCEL_PROJECT_NAME} --prod --confirm --yes"
         }
       }
     }
- 
   }
+
+  // แนะนำให้เอา post ออกไปก่อนจนกว่าจะตั้งค่าให้ Mocha สร้างไฟล์ XML ได้จริง
+  /*
   post {
     always {
-      junit 'test-results/junit.xml'
+       junit 'test-results/junit.xml'
     }
   }
+  */
 }
