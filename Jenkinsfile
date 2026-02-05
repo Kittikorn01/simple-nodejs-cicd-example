@@ -1,60 +1,53 @@
 pipeline {
-  environment {
-    VERCEL_PROJECT_NAME = 'devops04-simple-nodejs-cicd'
-    VERCEL_TOKEN = credentials('devops04-vercel-token') // ดึงจาก Jenkins
-  }
-  agent {
-    kubernetes {
-      // This YAML defines the "Docker Container" you want to use
-      yaml 
-      '''
-        apiVersion: v1
-        kind: Pod
-        spec:
-          containers:
-          - name: my-builder  # We will refer to this name later
-            image: node:20-alpine
-            command:
-            - cat
-            tty: true
-      '''
-    }
-  }
-  stages {
-    stage('Test npm') {
-      steps {
-        container('my-builder') {
-          sh 'npm --version'
-          sh 'node --version'
+    agent {
+        kubernetes {
+            // ต้องระบุ label เสมอใน Declarative Pipeline
+            label 'nodejs-agent'
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: my-builder
+    image: node:20-alpine
+    command:
+    - cat
+    tty: true
+'''
         }
-      }
     }
-    stage('Build') {
-      steps {
-        container('my-builder') {
-          sh 'npm ci'
-          //sh 'npm run build'
+
+    environment {
+        VERCEL_PROJECT_NAME = 'devops04-simple-nodejs-cicd'
+        VERCEL_TOKEN = credentials('devops04-vercel-token') 
+    }
+
+    stages {
+        stage('Install Dependencies') {
+            steps {
+                container('my-builder') {
+                    sh 'npm ci'
+                }
+            }
         }
-      }
-    }
-    stage('Test Build') {
-      steps {
-        container('my-builder') {
-          sh 'npm run test'
+
+        stage('Run Test') {
+            steps {
+                container('my-builder') {
+                    sh 'npm run test'
+                }
+            }
         }
-      }
-    }
-    stage('Deploy') {
-      steps {
-        container('my-builder') {
-          sh 'npm install -g vercel@latest'
-          // Deploy using token-only (non-interactive)
-          sh '''
-            vercel link --project $VERCEL_PROJECT_NAME --token $VERCEL_TOKEN --yes
-            vercel --token $VERCEL_TOKEN --prod --confirm
-          '''
+
+        stage('Deploy to Vercel') {
+            steps {
+                container('my-builder') {
+                    // ติดตั้ง vercel
+                    sh 'npm install -g vercel@latest'
+                    // ใช้ --yes เพื่อไม่ต้องรอการยืนยัน และระบุชื่อโปรเจกต์ตรงๆ
+                    sh "vercel --token ${VERCEL_TOKEN} --name ${VERCEL_PROJECT_NAME} --prod --confirm --yes"
+                }
+            }
         }
-      }
     }
-  }
 }
